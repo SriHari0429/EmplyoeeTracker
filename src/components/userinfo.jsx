@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import "./UserInfo.css";
+import "./userinfo.css";
 
 const API_KEY = "AIzaSyBG8bOtP9chnnahShv1Pn-ytiizAJDGlko"; // Replace with your API Key
 const SPREADSHEET_ID = "1YZHGs9aAtK22f1fZNJvXuPuhEZ23_XzaO__m7kGpXnw"; // Replace with your Google Sheets ID
