@@ -71,7 +71,7 @@ const RangeLevel = () => {
   }, [data, selectedName, fromDate, toDate]);
 
   return (
-    <div className="container mt-4">
+    <div className="container text-center pt-5 mt-5">
       <h1 className="text-center mb-4">Range Level Data</h1>
 
       <div className="row mb-4">

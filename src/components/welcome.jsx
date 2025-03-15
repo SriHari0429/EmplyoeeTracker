@@ -5,7 +5,7 @@ const Welcome = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="container text-center mt-5">
+    <div className="container text-center pt-5 mt-5">
       <h1 className="mb-4 fw-bold text-primary">✨ Welcome to Nirlogi Solutions ✨</h1>
       <div className="row justify-content-center">
         {[

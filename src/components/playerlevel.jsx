@@ -76,7 +76,7 @@ const PlayerLevel = () => {
   }, [data, selectedDate, selectedName]);
 
   return (
-    <Container fluid className="mt-4">
+    <Container fluid className="text-center pt-5 mt-5">
       <h2 className="text-center mb-4">Player Level Data</h2>
 
       {loading ? (

@@ -90,7 +90,7 @@ const GameLevel = () => {
   }, [data, selectedTable, selectedDate]);
 
   return (
-    <div className="container py-4">
+    <div className="container text-center pt-5 mt-5">
       <h1 className="text-center mb-4">Game Level Data</h1>
 
       <div className="row mb-4">

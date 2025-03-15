@@ -120,7 +120,7 @@ const UserInfo = () => {
 
   return (
     <div className="container pt-5 mt-10">
-      <h1 className="text-center mb-4 text-primary fw-bold">User Leaderboard</h1>
+      <h1 className="text-center mb-4 text-primary fw-bold text-center pt-5 mt-5">User Leaderboard</h1>
       {loading ? (
         <div className="text-center">
           <div className="spinner-border text-primary" role="status">
