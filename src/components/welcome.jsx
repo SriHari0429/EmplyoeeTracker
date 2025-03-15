@@ -1,30 +1,32 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import "./welcome.css"; // Import styles
 
 const Welcome = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="welcome-container">
-      <h1>Welcome to Nirlogic Dashboard</h1>
-      <div className="card-container">
-        <div className="card" onClick={() => navigate("/userinfo")}>
-          <h2>User Info</h2>
-          <p>Every user Actions are captured</p>
-        </div>
-        <div className="card" onClick={() => navigate("/player-level")}>
-          <h2>Player Level Data</h2>
-          <p>Every player graph</p>
-        </div>
-        <div className="card" onClick={() => navigate("/game-level")}>
-          <h2>Game Level Data</h2>
-          <p>Every player table data</p>
-        </div>
-        <div className="card" onClick={() => navigate("/range-level")}>
-          <h2>Range Level Data</h2>
-          <p>Particular date range data</p>
-        </div>
+    <div className="container text-center mt-5">
+      <h1 className="mb-4 fw-bold text-primary">✨ Welcome to Nirlogi Solutions ✨</h1>
+      <div className="row justify-content-center">
+        {[
+          { title: "User Info", desc: "Every user action is captured", path: "/userinfo" },
+          { title: "Player Level Data", desc: "Every player graph", path: "/player-level" },
+          { title: "Game Level Data", desc: "Every player table data", path: "/game-level" },
+          { title: "Range Level Data", desc: "Particular date range data", path: "/range-level" },
+        ].map((item, index) => (
+          <div key={index} className="col-md-3 col-sm-6 mb-4">
+            <div 
+              className="card shadow-lg p-4 border-0 text-center"
+              style={{ cursor: "pointer", transition: "transform 0.2s" }}
+              onClick={() => navigate(item.path)}
+              onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.05)"}
+              onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
+            >
+              <h2 className="h5 fw-bold">{item.title}</h2>
+              <p className="text-muted">{item.desc}</p>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

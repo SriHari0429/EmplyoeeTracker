@@ -6,12 +6,13 @@ import PlayerData from "./components/playerlevel";
 import GameLevel from "./components/gamelevel";
 import RangeLevel from "./components/rangelevel";
 import UserInfo from "./components/userinfo";
+import "bootstrap/dist/css/bootstrap.min.css"; // Bootstrap is now globally included
 
 const App = () => {
   return (
     <Router>
       <Navbar />
-      <div className="container">
+      <div className="container mt-4">
         <Routes>
           <Route path="/" element={<Welcome />} />
           <Route path="/player-level" element={<PlayerData />} />
