@@ -4,16 +4,19 @@ import { useNavigate } from "react-router-dom";
 const Welcome = () => {
   const navigate = useNavigate();
 
+  const cardData = [
+    { title: "User Info", desc: "Every user action is captured", path: "/user-info" },
+    { title: "Player Level Data", desc: "Every player graph", path: "/player-level" },
+    { title: "Game Level Data", desc: "Every player table data", path: "/game-level" },
+    { title: "Range Level Data", desc: "Particular date range data", path: "/range-level" },
+    { title: "Overall Graph", desc: "Complete game data overview", path: "/over-all" },
+  ];
+
   return (
     <div className="container text-center pt-5 mt-5">
       <h1 className="mb-4 fw-bold text-primary">✨ Welcome to Nirlogi Solutions ✨</h1>
       <div className="row justify-content-center">
-        {[
-          { title: "User Info", desc: "Every user action is captured", path: "/userinfo" },
-          { title: "Player Level Data", desc: "Every player graph", path: "/player-level" },
-          { title: "Game Level Data", desc: "Every player table data", path: "/game-level" },
-          { title: "Range Level Data", desc: "Particular date range data", path: "/range-level" },
-        ].map((item, index) => (
+        {cardData.map((item, index) => (
           <div key={index} className="col-md-3 col-sm-6 mb-4">
             <div 
               className="card shadow-lg p-4 border-0 text-center"
