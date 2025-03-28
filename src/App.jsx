@@ -7,6 +7,7 @@ import GameLevel from "./components/gamelevel";
 import RangeLevel from "./components/rangelevel";
 import UserInfo from "./components/userinfo";
 import Overall from "./components/overall";
+import BalanceTracker from "./components/BalanceTracker";
 import "bootstrap/dist/css/bootstrap.min.css"; // Bootstrap is now globally included
 
 const App = () => {
@@ -21,6 +22,7 @@ const App = () => {
           <Route path="/range-level" element={<RangeLevel />} />
           <Route path="/user-info" element={<UserInfo />} />
           <Route path="/over-all" element={<Overall />} />
+          <Route path="/balance-tracker" element={<BalanceTracker />} />
         </Routes>
       </div>
     </Router>

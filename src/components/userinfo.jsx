@@ -26,6 +26,7 @@ const UserInfo = () => {
   const [dates, setDates] = useState([]);
   const [selectedDate, setSelectedDate] = useState("");
   const [loading, setLoading] = useState(true);
+  const [selectedUsers, setSelectedUsers] = useState(new Set());
 
   useEffect(() => {
     fetchAllSheets();
@@ -52,9 +53,7 @@ const UserInfo = () => {
             currentTable: row[2]?.trim() || "Unknown Table",
             runningBalance: parseFloat(row[6]?.replace(/,/g, "") || 0),
             currentGame: getGameName(row[7]?.trim()),
-            time: row[3]?.trim() || "N/A",
-            profit: row[6] > 0 ? parseFloat(row[6]) : 0,
-            loss: row[6] < 0 ? Math.abs(parseFloat(row[6])) : 0,
+            updateTime: row[3]?.trim() || "N/A",
           };
         });
 
@@ -72,7 +71,12 @@ const UserInfo = () => {
     setData(allData);
     if (uniqueDates.length > 0) {
       setSelectedDate(uniqueDates[0]);
-      setFilteredData(allData.filter((item) => item.date === uniqueDates[0]));
+      const filtered = allData.filter((item) => item.date === uniqueDates[0]);
+      setFilteredData(filtered);
+
+      // Initialize selected users (all checked by default)
+      const initialSelectedUsers = new Set(filtered.map((item) => item.name));
+      setSelectedUsers(initialSelectedUsers);
     }
     setLoading(false);
   };
@@ -80,47 +84,50 @@ const UserInfo = () => {
   const handleDateChange = (event) => {
     const newDate = event.target.value;
     setSelectedDate(newDate);
-    setFilteredData(data.filter((item) => item.date === newDate));
+    const filtered = data.filter((item) => item.date === newDate);
+    setFilteredData(filtered);
+
+    // Update selected users for new date
+    const newSelectedUsers = new Set(filtered.map((item) => item.name));
+    setSelectedUsers(newSelectedUsers);
   };
 
   const processedData = filteredData.reduce((acc, item) => {
-    if (!acc[item.name]) {
-      acc[item.name] = { 
-        ...item, 
-        shiftStart: item.time,  
-        shiftEnd: item.time,
-        runningBalance: item.runningBalance,
-        profit: item.runningBalance > 0 ? item.runningBalance : 0, 
-        loss: item.runningBalance < 0 ? Math.abs(item.runningBalance) : 0,
-      };
-    } else {
-      acc[item.name].shiftStart = acc[item.name].shiftStart < item.time ? acc[item.name].shiftStart : item.time;
-      acc[item.name].shiftEnd = item.time;
-      acc[item.name].runningBalance = item.runningBalance;
-  
-      if (item.runningBalance > 0) {
-        acc[item.name].profit += item.runningBalance;
-      }
-      if (item.runningBalance < 0) {
-        acc[item.name].loss += Math.abs(item.runningBalance);
-      }
-    }
-  
-    // ✅ Calculate Total Work Hours
-    const startTime = new Date(`2024-01-01 ${acc[item.name].shiftStart}`);
-    const endTime = new Date(`2024-01-01 ${acc[item.name].shiftEnd}`);
-    const totalMinutes = (endTime - startTime) / (1000 * 60); // Convert ms to minutes
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    acc[item.name].totalHoursWorked = `${hours}h ${minutes}m`;
-  
+    acc[item.name] = {
+      ...item,
+      updateTime: item.updateTime,
+      runningBalance: item.runningBalance,
+    };
     return acc;
   }, {});
-  
+
+  // Checkbox handler to track selected users
+  const handleCheckboxChange = (name) => {
+    setSelectedUsers((prev) => {
+      const newSelected = new Set(prev);
+      if (newSelected.has(name)) {
+        newSelected.delete(name);
+      } else {
+        newSelected.add(name);
+      }
+      return newSelected;
+    });
+  };
+
+  // Filter selected users and calculate the total balance
+  const selectedBalances = Object.values(processedData).filter((user) =>
+    selectedUsers.has(user.name)
+  );
+  const totalBalance = selectedBalances.reduce(
+    (sum, user) => sum + user.runningBalance,
+    0
+  );
 
   return (
     <div className="container pt-5 mt-10">
-      <h1 className="text-center mb-4 text-primary fw-bold text-center pt-5 mt-5">User Leaderboard</h1>
+      <h1 className="text-center mb-4 text-primary fw-bold text-center pt-5 mt-5">
+        User Leaderboard
+      </h1>
       {loading ? (
         <div className="text-center">
           <div className="spinner-border text-primary" role="status">
@@ -131,44 +138,72 @@ const UserInfo = () => {
         <>
           <div className="mb-3 w-25">
             <label className="form-label fw-bold">Select Date:</label>
-            <input type="date" className="form-control" value={selectedDate} onChange={handleDateChange} />
+            <input
+              type="date"
+              className="form-control"
+              value={selectedDate}
+              onChange={handleDateChange}
+            />
           </div>
           <div className="table-responsive">
             <table className="table table-striped table-bordered">
               <thead className="table-dark text-center">
                 <tr>
+                  <th>Select</th>
                   <th>Name</th>
                   <th>Current Game</th>
                   <th>Current Table</th>
-                  <th>Running Balance</th>
-                  <th>Shift Start</th>
-                  <th>Shift End</th>
-                  <th>Total Hours Worked</th>
-                  <th>Profit</th>
-                  <th>Loss</th>
+                  <th>Current Running Balance</th>
+                  <th>Update Time</th>
                 </tr>
               </thead>
               <tbody>
                 {Object.values(processedData).length > 0 ? (
                   Object.values(processedData).map((user, index) => (
                     <tr key={index} className="text-center">
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={selectedUsers.has(user.name)}
+                          onChange={() => handleCheckboxChange(user.name)}
+                        />
+                      </td>
                       <td>{user.name}</td>
                       <td>{user.currentGame}</td>
                       <td>{user.currentTable}</td>
-                      <td className="fw-bold text-primary">₹{user.runningBalance.toLocaleString()}</td>
-                      <td>{user.shiftStart}</td>
-                      <td>{user.shiftEnd}</td>
-                      <td className="fw-bold text-info">{user.totalHoursWorked}</td>
-                      <td className="text-success fw-bold">₹{user.profit.toLocaleString()}</td>
-                      <td className="text-danger fw-bold">₹{user.loss.toLocaleString()}</td>
+                      <td
+                        className={`fw-bold ${
+                          user.runningBalance >= 0
+                            ? "text-success"
+                            : "text-danger"
+                        }`}
+                      >
+                        ₹{user.runningBalance.toLocaleString()}
+                      </td>
+                      <td>{user.updateTime}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="9" className="text-center fw-bold text-danger">No data available for selected date.</td>
+                    <td colSpan="6" className="text-center fw-bold text-danger">
+                      No data available for selected date.
+                    </td>
                   </tr>
                 )}
               </tbody>
+              <tfoot className="table-warning text-center">
+                <tr>
+                  <td colSpan="4" className="fw-bold">Total Selected Balance</td>
+                  <td
+                    className={`fw-bold ${
+                      totalBalance >= 0 ? "text-success" : "text-danger"
+                    }`}
+                  >
+                    ₹{totalBalance.toLocaleString()}
+                  </td>
+                  <td></td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </>

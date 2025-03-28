@@ -38,57 +38,63 @@ const Overall = () => {
   const [toDate, setToDate] = useState("");
   const [loading, setLoading] = useState(false);
 
-  
   useEffect(() => {
+    const today = new Date().toISOString().split("T")[0];
+    setFromDate(today);
+    setToDate(today);
+  }, []);
+
+  const fetchData = () => {
     setLoading(true);
     Promise.all(SHEET_URLS.map((url) => fetch(url).then((res) => res.json())))
       .then((results) => {
-        let seenTransactions = new Set(); // ✅ Prevent duplicates
-  
+        let seenTransactions = new Set();
         const allData = results.flatMap((result) => {
           const rows = result.values;
           if (!rows || rows.length < 2) return [];
   
           return rows.slice(1).map((row) => {
-            let balanceString = (row[6] || "0").replace(/,/g, ""); // Remove commas
-  
-            // ✅ Convert values in parentheses (e.g., "(110)") into negative numbers
-            let balance = balanceString.includes("(") 
-              ? -parseFloat(balanceString.replace(/[()]/g, "")) 
+            let balanceString = (row[6] || "0").replace(/,/g, "");
+            let balance = balanceString.includes("(")
+              ? -parseFloat(balanceString.replace(/[()]/g, ""))
               : parseFloat(balanceString);
   
-            let transactionId = `${row[0]}-${row[3]}-${balance}`; // Unique ID
-            if (seenTransactions.has(transactionId)) return null; // ✅ Avoid duplicates
+            let transactionId = `${row[0]}-${row[3]}-${balance}`;
+            if (seenTransactions.has(transactionId)) return null;
             seenTransactions.add(transactionId);
   
             return {
               date: row[0] || "Unknown Date",
-              time: row[3] || "Unknown Time", // Capture time for sorting
+              time: row[3] || "Unknown Time",
               name: row[2] || "Unknown Player",
               game: getGameName(row[3] || ""),
-              runningBalance: isNaN(balance) ? 0 : balance, // Ensure valid numbers
+              runningBalance: isNaN(balance) ? 0 : balance,
             };
-          }).filter(Boolean); // Remove nulls (duplicates)
+          }).filter(Boolean);
         });
+
         allData.sort((a, b) => {
           let dateTimeA = new Date(`${a.date} ${a.time}`);
           let dateTimeB = new Date(`${b.date} ${b.time}`);
           return dateTimeA - dateTimeB;
         });
-        
 
         setData(allData);
       })
       .catch((error) => console.error("Error fetching data:", error))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchData(); // Initial fetch
+    const interval = setInterval(fetchData, 30000); // Auto-refresh every 30sec
+    return () => clearInterval(interval);
   }, []);
-  
-  
 
   const filteredData = useMemo(() => {
-    let balanceMap = new Map(); // ✅ Store each player's last balance
-    let cumulativeProfitLoss = 0; // ✅ Track total profit/loss
-  
+    let balanceMap = new Map();
+    let cumulativeProfitLoss = 0;
+
     return data
       .filter((item) => {
         let formattedItemDate = item.date.replace(/(\d{2})\/(\d{2})\/(\d{4})/, "$3-$2-$1");
@@ -98,30 +104,30 @@ const Overall = () => {
         return (!from || itemDate >= from) && (!to || itemDate <= to);
       })
       .map((item) => {
-        let prevBalance = balanceMap.get(item.name) || 0; // ✅ Get previous balance per player
-        let difference = item.runningBalance - prevBalance; // ✅ Correct balance change
-        cumulativeProfitLoss += difference; // ✅ Update cumulative profit/loss
-        balanceMap.set(item.name, item.runningBalance); // ✅ Store new balance for next calculation
-  
+        let prevBalance = balanceMap.get(item.name) || 0;
+        let difference = item.runningBalance - prevBalance;
+        cumulativeProfitLoss += difference;
+        balanceMap.set(item.name, item.runningBalance);
+
         return { 
           ...item, 
-          cumulativeBalance: cumulativeProfitLoss, // ✅ Properly updated
+          cumulativeBalance: cumulativeProfitLoss, 
         };
       });
   }, [data, fromDate, toDate]);
-  
+
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       const value = payload[0].value;
-      const color = value >= 0 ? "green" : "red"; // ✅ Green for positive, Red for negative
-  
+      const color = value >= 0 ? "green" : "red";
+
       return (
         <div
           style={{
             backgroundColor: "white",
             padding: "10px",
             borderRadius: "8px",
-            border: `2px solid ${color}`, // ✅ Border color based on value
+            border: `2px solid ${color}`,
             boxShadow: "0px 0px 8px rgba(0, 0, 0, 0.1)",
           }}
         >
@@ -134,7 +140,6 @@ const Overall = () => {
     }
     return null;
   };
-  
 
   return (
     <div className="container text-center pt-5 mt-5">
@@ -160,59 +165,15 @@ const Overall = () => {
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={500}>
-  <LineChart data={filteredData} margin={{ top: 20, right: 30, left: 20, bottom: 50 }}>
-    
-    {/* ✅ Use Time Instead of Date for Better Tooltip Accuracy */}
-    <XAxis 
-      dataKey="time" 
-      tick={{ fontSize: 12 }} 
-      angle={-45} 
-      textAnchor="end" 
-    />
-
-    <YAxis 
-      domain={['dataMin - 5000', 'dataMax + 5000']} 
-      tick={{ fontSize: 12 }} 
-    />
-
-    <ReferenceLine y={0} stroke="blue" strokeWidth={2} strokeDasharray="5 5" />
-
-    {/* ✅ Fix Tooltip to Show Time Instead of Player Name */}
-    <Tooltip content={<CustomTooltip />}
-  formatter={(value) => [
-    value.toLocaleString("en-IN", { minimumFractionDigits: 2 }), // ✅ Format number
-  ]}
-  labelFormatter={(label, payload) => {
-    if (payload && payload.length > 0) {
-      return `Time: ${payload[0].payload.time || "Unknown Time"}`; // ✅ Show Time Properly
-    }
-    return "Unknown Time";
-  }}
-  contentStyle={{
-    borderRadius: "8px",
-    border: "none",
-    padding: "10px",
-  }}
-  itemStyle={(props) => ({
-    color: props.payload.value >= 0 ? "green" : "red", // ✅ Green for positive, Red for negative
-    fontWeight: "bold",
-  })}
-/>
-
-
-    <Legend />
-
-    {/* ✅ Use Proper Line Stroke for Cumulative Balance */}
-    <Line 
-      type="monotone" 
-      dataKey="cumulativeBalance" 
-      stroke="#ff4136" 
-      strokeWidth={2} 
-      dot={{ r: 3 }} 
-    />
-  </LineChart>
-</ResponsiveContainer>
-
+            <LineChart data={filteredData} margin={{ top: 20, right: 30, left: 20, bottom: 50 }}>
+              <XAxis dataKey="time" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" />
+              <YAxis domain={['dataMin - 5000', 'dataMax + 5000']} tick={{ fontSize: 12 }} />
+              <ReferenceLine y={0} stroke="blue" strokeWidth={2} strokeDasharray="5 5" />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend />
+              <Line type="monotone" dataKey="cumulativeBalance" stroke="#ff4136" strokeWidth={2} dot={{ r: 3 }} />
+            </LineChart>
+          </ResponsiveContainer>
         )}
       </div>
     </div>
