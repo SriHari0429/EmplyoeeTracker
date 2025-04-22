@@ -10,7 +10,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import "bootstrap/dist/css/bootstrap.min.css";
-import { Spinner } from "react-bootstrap";
+import { Spinner, Button, Form } from "react-bootstrap";
 
 const API_KEY = "AIzaSyBG8bOtP9chnnahShv1Pn-ytiizAJDGlko";
 const SPREADSHEET_ID = "1YZHGs9aAtK22f1fZNJvXuPuhEZ23_XzaO__m7kGpXnw";
@@ -37,6 +37,12 @@ const Overall = () => {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [loading, setLoading] = useState(false);
+  const [filteredData, setFilteredData] = useState([]);
+
+
+  const [totalPositive, setTotalPositive] = useState(0);
+  const [totalNegative, setTotalNegative] = useState(0);
+  const [totalDifference, setTotalDifference] = useState(0);
 
   useEffect(() => {
     const today = new Date().toISOString().split("T")[0];
@@ -49,7 +55,7 @@ const Overall = () => {
     Promise.all(SHEET_URLS.map((url) => fetch(url).then((res) => res.json())))
       .then((results) => {
         let seenTransactions = new Set();
-        const allData = results.flatMap((result) => {
+        let allData = results.flatMap((result) => {
           const rows = result.values;
           if (!rows || rows.length < 2) return [];
 
@@ -74,8 +80,8 @@ const Overall = () => {
         });
 
         allData.sort((a, b) => {
-          let dateTimeA = new Date(`${a.date} ${a.time}`);
-          let dateTimeB = new Date(`${b.date} ${b.time}`);
+          let dateTimeA = new Date(`${a.date.split("/").reverse().join("-")} ${a.time}`);
+          let dateTimeB = new Date(`${b.date.split("/").reverse().join("-")} ${b.time}`);
           return dateTimeA - dateTimeB;
         });
 
@@ -87,77 +93,103 @@ const Overall = () => {
 
   useEffect(() => {
     fetchData(); // Initial fetch
-    const interval = setInterval(fetchData, 30000); // Auto-refresh every 30sec
-    return () => clearInterval(interval);
   }, []);
 
-  const filteredData = useMemo(() => {
-    let balanceMap = new Map();
-    let cumulativeProfitLoss = 0;
-
-    return data
-      .filter((item) => {
-        let formattedItemDate = item.date.replace(/(\d{2})\/(\d{2})\/(\d{4})/, "$3-$2-$1");
-        const itemDate = new Date(formattedItemDate);
-        const from = fromDate ? new Date(fromDate) : null;
-        const to = toDate ? new Date(toDate) : null;
-        return (!from || itemDate >= from) && (!to || itemDate <= to);
+  useEffect(() => {
+    const today = new Date().toISOString().split("T")[0];
+    const from = fromDate ? new Date(fromDate) : new Date(today);
+    const to = toDate ? new Date(toDate) : new Date(today);
+  
+    const filteredTransactions = data.filter((item) => {
+      const itemDate = new Date(item.date.split("/").reverse().join("-"));
+      return itemDate >= from && itemDate <= to;
+    });
+  
+    // Step 1: Group by name + time
+    const grouped = {};
+    filteredTransactions.forEach((item) => {
+      const key = `${item.name}-${item.time}`;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(item);
+    });
+  
+    let totalPos = 0;
+    let totalNeg = 0;
+    const graphPoints = [];
+  
+    Object.entries(grouped)
+      .sort((a, b) => {
+        const [keyA, groupA] = a;
+        const [keyB, groupB] = b;
+        const t1 = new Date(`1970-01-01T${groupA[0].time}`);
+        const t2 = new Date(`1970-01-01T${groupB[0].time}`);
+        return t1 - t2;
       })
-      .map((item) => {
-        let prevBalance = balanceMap.get(item.name) || 0;
-        let difference = item.runningBalance - prevBalance;
-        cumulativeProfitLoss += difference;
-        balanceMap.set(item.name, item.runningBalance);
-
-        return { 
-          ...item, 
-          cumulativeBalance: cumulativeProfitLoss, 
-        };
+      .forEach(([key, group]) => {
+        let groupPos = 0;
+        let groupNeg = 0;
+  
+        group.forEach((item) => {
+          const val = item.runningBalance;
+          if (val >= 0) groupPos += val;
+          else groupNeg += Math.abs(val);
+        });
+  
+        totalPos += groupPos;
+        totalNeg += groupNeg;
+  
+        const diff = totalPos - totalNeg;
+  
+        graphPoints.push({
+          time: group[0].time,
+          label: key,
+          totalDifference: diff,
+        });
       });
+  
+    setTotalPositive(totalPos);
+    setTotalNegative(totalNeg);
+    setTotalDifference(totalPos - totalNeg);
+    setFilteredData(graphPoints); // This is your graph data
   }, [data, fromDate, toDate]);
+  
+  
 
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      const value = payload[0].value;
-      const color = value >= 0 ? "green" : "red";
-
-      return (
-        <div
-          style={{
-            backgroundColor: "white",
-            padding: "10px",
-            borderRadius: "8px",
-            border: `2px solid ${color}`,
-            boxShadow: "0px 0px 8px rgba(0, 0, 0, 0.1)",
-          }}
-        >
-          <p style={{ fontWeight: "bold", marginBottom: "5px" }}>Time: {label}</p>
-          <p style={{ color: color, fontWeight: "bold" }}>
-            Balance: {value.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-          </p>
-        </div>
-      );
-    }
-    return null;
-  };
-
+  
   return (
     <div className="container text-center pt-5 mt-5">
       <h1 className="text-center mb-4">Overall Game Data</h1>
 
-      <div className="row mb-4">
-        <div className="col-md-6">
-          <label className="form-label">From Date:</label>
-          <input type="date" className="form-control" onChange={(e) => setFromDate(e.target.value)} />
-        </div>
-
-        <div className="col-md-6">
-          <label className="form-label">To Date:</label>
-          <input type="date" className="form-control" onChange={(e) => setToDate(e.target.value)} />
-        </div>
-      </div>
-
       <div className="card p-3">
+        {/* Date Filters */}
+        <div className="row mb-3">
+          <div className="col-md-6">
+            <Form.Group>
+              <Form.Label>From Date:</Form.Label>
+              <Form.Control
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+              />
+            </Form.Group>
+          </div>
+          <div className="col-md-6">
+            <Form.Group>
+              <Form.Label>To Date:</Form.Label>
+              <Form.Control
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+              />
+            </Form.Group>
+          </div>
+        </div>
+
+        {/* Refresh Button */}
+        <Button variant="primary" onClick={fetchData} className="mb-3 w-2">
+          Refresh Data
+        </Button>
+
         {loading ? (
           <div className="text-center my-4">
             <Spinner animation="border" role="status" />
@@ -167,15 +199,21 @@ const Overall = () => {
           <ResponsiveContainer width="100%" height={500}>
             <LineChart data={filteredData} margin={{ top: 20, right: 30, left: 20, bottom: 50 }}>
               <XAxis dataKey="time" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" />
-              <YAxis domain={['dataMin - 5000', 'dataMax + 5000']} tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 12 }} />
               <ReferenceLine y={0} stroke="blue" strokeWidth={2} strokeDasharray="5 5" />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="cumulativeBalance" stroke="#ff4136" strokeWidth={2} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="totalDifference" stroke="#28a745" strokeWidth={2} dot={{ r: 3 }} />
             </LineChart>
           </ResponsiveContainer>
         )}
       </div>
+      <div className="mb-4">
+  <h5 className="text-success">Total Positive: ₹{totalPositive.toLocaleString()}</h5>
+  <h5 className="text-danger">Total Negative: ₹{totalNegative.toLocaleString()}</h5>
+  <h5 className="text-primary">Total Difference: ₹{totalDifference.toLocaleString()}</h5>
+</div>
+
     </div>
   );
 };
