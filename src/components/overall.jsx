@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import {
   LineChart,
   Line,
@@ -38,8 +38,6 @@ const Overall = () => {
   const [toDate, setToDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [filteredData, setFilteredData] = useState([]);
-
-
   const [totalPositive, setTotalPositive] = useState(0);
   const [totalNegative, setTotalNegative] = useState(0);
   const [totalDifference, setTotalDifference] = useState(0);
@@ -59,24 +57,27 @@ const Overall = () => {
           const rows = result.values;
           if (!rows || rows.length < 2) return [];
 
-          return rows.slice(1).map((row) => {
-            let balanceString = (row[6] || "0").replace(/,/g, "");
-            let balance = balanceString.includes("(")
-              ? -parseFloat(balanceString.replace(/[()]/g, ""))
-              : parseFloat(balanceString);
+          return rows
+            .slice(1)
+            .map((row) => {
+              let balanceString = (row[6] || "0").replace(/,/g, "");
+              let balance = balanceString.includes("(")
+                ? -parseFloat(balanceString.replace(/[()]/g, ""))
+                : parseFloat(balanceString);
 
-            let transactionId = `${row[0]}-${row[2]}-${row[3]}-${balance}`;
-            if (seenTransactions.has(transactionId)) return null;
-            seenTransactions.add(transactionId);
+              let transactionId = `${row[0]}-${row[2]}-${row[3]}-${balance}`;
+              if (seenTransactions.has(transactionId)) return null;
+              seenTransactions.add(transactionId);
 
-            return {
-              date: row[0] || "Unknown Date",
-              time: row[3] || "Unknown Time",
-              name: row[2] || "Unknown Player",
-              game: getGameName(row[3] || ""),
-              runningBalance: isNaN(balance) ? 0 : balance,
-            };
-          }).filter(Boolean);
+              return {
+                date: row[0] || "Unknown Date",
+                time: row[3] || "Unknown Time",
+                name: row[2] || "Unknown Player",
+                game: getGameName(row[3] || ""),
+                runningBalance: isNaN(balance) ? 0 : balance,
+              };
+            })
+            .filter(Boolean);
         });
 
         allData.sort((a, b) => {
@@ -92,7 +93,7 @@ const Overall = () => {
   };
 
   useEffect(() => {
-    fetchData(); // Initial fetch
+    fetchData();
   }, []);
 
   useEffect(() => {
@@ -105,44 +106,57 @@ const Overall = () => {
       return itemDate >= from && itemDate <= to;
     });
   
-    // Step 1: Group by name + time
-    const grouped = {};
+    const groupedByTime = {};
     filteredTransactions.forEach((item) => {
-      const key = `${item.name}-${item.time}`;
-      if (!grouped[key]) grouped[key] = [];
-      grouped[key].push(item);
+      const timeKey = item.time;
+      if (!groupedByTime[timeKey]) groupedByTime[timeKey] = [];
+      groupedByTime[timeKey].push(item);
     });
   
     let totalPos = 0;
     let totalNeg = 0;
-    const graphPoints = [];
+    let prevDifference = 0;
+    let graphPoints = [];
   
-    Object.entries(grouped)
+    Object.entries(groupedByTime)
       .sort((a, b) => {
-        const t1 = new Date(`1970-01-01T${a[1][0].time}`);
-        const t2 = new Date(`1970-01-01T${b[1][0].time}`);
+        const t1 = new Date(`1970-01-01T${a[0]}`);
+        const t2 = new Date(`1970-01-01T${b[0]}`);
         return t1 - t2;
       })
-      .forEach(([key, group]) => {
-        let groupTotal = 0;
+      .forEach(([time, group]) => {
+        const nameMap = {};
   
         group.forEach((item) => {
-          groupTotal += item.runningBalance;
+          const name = item.name;
+          if (!nameMap[name]) nameMap[name] = { pos: 0, neg: 0 };
+  
+          if (item.runningBalance >= 0) {
+            nameMap[name].pos += item.runningBalance;
+          } else {
+            nameMap[name].neg += Math.abs(item.runningBalance);
+          }
         });
   
-        if (groupTotal >= 0) {
-          totalPos += groupTotal;
-        } else {
-          totalNeg += Math.abs(groupTotal);
-        }
+        let groupPos = 0;
+        let groupNeg = 0;
   
-        const diff = totalPos - totalNeg;
+        Object.values(nameMap).forEach(({ pos, neg }) => {
+          groupPos += pos;
+          groupNeg += neg;
+        });
+  
+        totalPos += groupPos;
+        totalNeg += groupNeg;
+        const currentDifference = totalPos - totalNeg;
   
         graphPoints.push({
-          time: group[0].time,
-          label: key,
-          totalDifference: diff,
+          time,
+          totalDifference: currentDifference,
+          prevDifference,
         });
+  
+        prevDifference = currentDifference;
       });
   
     setTotalPositive(totalPos);
@@ -152,14 +166,10 @@ const Overall = () => {
   }, [data, fromDate, toDate]);
   
   
-
-  
   return (
     <div className="container text-center pt-5 mt-5">
       <h1 className="text-center mb-4">Overall Game Data</h1>
-
       <div className="card p-3">
-        {/* Date Filters */}
         <div className="row mb-3">
           <div className="col-md-6">
             <Form.Group>
@@ -183,7 +193,6 @@ const Overall = () => {
           </div>
         </div>
 
-        {/* Refresh Button */}
         <Button variant="primary" onClick={fetchData} className="mb-3 w-2">
           Refresh Data
         </Button>
@@ -206,11 +215,13 @@ const Overall = () => {
           </ResponsiveContainer>
         )}
       </div>
+
       <div className="mb-4">
   <h5 className="text-success">Total Positive: ₹{totalPositive.toLocaleString()}</h5>
   <h5 className="text-danger">Total Negative: ₹{totalNegative.toLocaleString()}</h5>
   <h5 className="text-primary">Total Difference: ₹{totalDifference.toLocaleString()}</h5>
 </div>
+
 
     </div>
   );
