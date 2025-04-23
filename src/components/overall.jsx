@@ -65,7 +65,7 @@ const Overall = () => {
               ? -parseFloat(balanceString.replace(/[()]/g, ""))
               : parseFloat(balanceString);
 
-            let transactionId = `${row[0]}-${row[3]}-${balance}`;
+            let transactionId = `${row[0]}-${row[2]}-${row[3]}-${balance}`;
             if (seenTransactions.has(transactionId)) return null;
             seenTransactions.add(transactionId);
 
@@ -119,24 +119,22 @@ const Overall = () => {
   
     Object.entries(grouped)
       .sort((a, b) => {
-        const [keyA, groupA] = a;
-        const [keyB, groupB] = b;
-        const t1 = new Date(`1970-01-01T${groupA[0].time}`);
-        const t2 = new Date(`1970-01-01T${groupB[0].time}`);
+        const t1 = new Date(`1970-01-01T${a[1][0].time}`);
+        const t2 = new Date(`1970-01-01T${b[1][0].time}`);
         return t1 - t2;
       })
       .forEach(([key, group]) => {
-        let groupPos = 0;
-        let groupNeg = 0;
+        let groupTotal = 0;
   
         group.forEach((item) => {
-          const val = item.runningBalance;
-          if (val >= 0) groupPos += val;
-          else groupNeg += Math.abs(val);
+          groupTotal += item.runningBalance;
         });
   
-        totalPos += groupPos;
-        totalNeg += groupNeg;
+        if (groupTotal >= 0) {
+          totalPos += groupTotal;
+        } else {
+          totalNeg += Math.abs(groupTotal);
+        }
   
         const diff = totalPos - totalNeg;
   
@@ -150,7 +148,7 @@ const Overall = () => {
     setTotalPositive(totalPos);
     setTotalNegative(totalNeg);
     setTotalDifference(totalPos - totalNeg);
-    setFilteredData(graphPoints); // This is your graph data
+    setFilteredData(graphPoints);
   }, [data, fromDate, toDate]);
   
   
